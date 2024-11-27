@@ -31,7 +31,8 @@ class PeftConfig:
     peft_method: str = "lora" # None , llama_adapter, prefix
     r: int = 8
     lora_alpha: int = 32
-    target_modules: List = field(default_factory=lambda: [ "q_proj", "v_proj" ])
+    #target_modules: List = field(default_factory=lambda: [ "q_proj", "v_proj" ])
+    target_modules: str = "all-linear"
     bias: str = "none"
     task_type: str = "CAUSAL_LM"
     lora_dropout: float = 0.05
@@ -49,7 +50,7 @@ class TrainConfig:
     batching_strategy:str = field(default="packing", metadata={
         "help":"alternative: padding"
     }) #
-    context_length:int = 4096
+    context_length:int = 1024
     gradient_accumulation_steps:int = 1
     num_epochs:int = 3
     num_workers_dataloader:int = 1
@@ -126,6 +127,11 @@ class LogConfig:
     wandb_dir: str = "/workspace/tools/SLAM-LLM/examples/asr_librispeech/test_wandb"
     wandb_entity_name: str = "slam"
     wandb_project_name: str = "slam"
-    wandb_exp_name: str = "gpu8-fp32-ampOff-whisper_large-v3_vicuba_7b"
+    #wandb_exp_name: str = "gpu8-fp32-ampOff-wavlm_large-v3_bllossom_3b"
+    #wandb_exp_name: str = "kordrama1knopunc-gpu8-fp32-ampOff-wavlm_large-v3_bllossom_3b"
+    #wandb_exp_name: str = "korpromptdrama1knopunc-gpu8-fp32-ampOff-wavlm_large-v3_bllossom_3b"
+    #wandb_exp_name: str = "korpromptdrama1knopunc-gpu8-wavlm_phi3.5"
+    #wandb_exp_name: str = "LoRA-korpromptdrama1knopunc-gpu8-wavlm_phi3.5"
+    wandb_exp_name: str = "LoRA-kspon_drama1k-gpu8-wavlm_phi3.5"
     log_file: str = "/workspace/tools/SLAM-LLM/examples/asr_librispeech/test.log"
     log_interval: int = 5

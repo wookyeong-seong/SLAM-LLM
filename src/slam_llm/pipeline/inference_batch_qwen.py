@@ -97,7 +97,7 @@ def main(kwargs: DictConfig):
     random.seed(train_config.seed)
 
     model_factory = get_custom_model_factory(model_config, logger)
-    model, tokenizer = model_factory(train_config, model_config, **kwargs)
+    model, processor, tokenizer = model_factory(train_config, model_config, **kwargs)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # FIX(MZY): put the whole model to device.
     model.to(device)
     model.eval()
@@ -105,7 +105,7 @@ def main(kwargs: DictConfig):
     # dataset_config = generate_dataset_config(train_config, kwargs)
     logger.info("dataset_config: {}".format(dataset_config))
     dataset_test = get_preprocessed_dataset(
-            tokenizer,
+            processor,
             dataset_config,
             split="test",
             )
@@ -130,8 +130,11 @@ def main(kwargs: DictConfig):
         for step, batch in tqdm(enumerate(test_dataloader), total=len(test_dataloader)):
             for key in batch.keys():
                 batch[key] = batch[key].to(device) if isinstance(batch[key], torch.Tensor) else batch[key]
+            #print(f'batch: {batch}', flush=True)
             model_outputs = model.generate(**batch)
-            output_text = model.tokenizer.batch_decode(model_outputs, add_special_tokens=False, skip_special_tokens=True)
+            model_outputs = model_outputs[:, batch.input_ids.size(1):]
+            #output_text = model.tokenizer.batch_decode(model_outputs, add_special_tokens=False, skip_special_tokens=True)
+            output_text = model.tokenizer.batch_decode(model_outputs, skip_special_tokens=True, clean_up_tokenization_spaces=False)
             for key, text, target in zip(batch["keys"], output_text, batch["targets"]):
                 pred.write(key + "\t" + text.replace("\n", " ") + "\n")
                 pred.flush()

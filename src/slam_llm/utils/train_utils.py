@@ -73,6 +73,9 @@ def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_sche
             scaler = ShardedGradScaler()
     if train_config.enable_fsdp or train_config.enable_ddp:
         world_size = int(os.environ["WORLD_SIZE"])
+
+    #if train_config.use_fp16:
+    #    torch.set_autocast_gpu_dtype(torch.bfloat16)
     autocast = torch.cuda.amp.autocast if train_config.use_fp16 else nullcontext
     
     train_prep = []
@@ -106,6 +109,7 @@ def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_sche
                         if isinstance(batch[key], dict):
                             for k2 in batch[key].keys():
                                 batch[key][k2] = batch[key][k2].to('cuda:0') if isinstance(batch[key][k2], torch.Tensor) else batch[key][k2]
+                #with autocast(dtype=torch.bfloat16):
                 with autocast():
                     outputs, *rest = model(**batch)
                 acc = rest[0] if rest else -1
@@ -291,6 +295,7 @@ def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_sche
                         if rank==0:
                             logger.info("=====================================")
                             logger.info(f"Test the file {train_config.run_test_during_validation_file} during validation:")
+                            #with autocast(dtype=torch.bfloat16):
                             with autocast():
                                 logger.info(model.inference(train_config.run_test_during_validation_file, train_config.run_test_during_validation_prompt))
                             logger.info("=====================================")
@@ -298,6 +303,7 @@ def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_sche
                     else:
                         logger.info("=====================================")
                         logger.info(f"Test the file {train_config.run_test_during_validation_file} during validation:")
+                        #with autocast(dtype=torch.bfloat16):
                         with autocast():
                             logger.info(model.inference(train_config.run_test_during_validation_file, train_config.run_test_during_validation_prompt))
                         logger.info("=====================================")
@@ -394,6 +400,8 @@ def evaluation(model,train_config, eval_dataloader, local_rank, tokenizer):
     eval_preds = []
     eval_loss = 0.0  # Initialize evaluation loss
     eval_acc = 0.0
+    if train_config.use_fp16:
+        torch.set_autocast_gpu_dtype(torch.bfloat16)
     autocast = torch.cuda.amp.autocast if train_config.use_fp16 else nullcontext # (Fix:MZY): fix expected scalar type mismatch in norm 
 
     with MemoryTrace() as memtrace:

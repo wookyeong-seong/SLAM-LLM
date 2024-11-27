@@ -1,0 +1,5 @@
+dataset_config:
+    # we put prompt here, because the hydra override in shell script only support a small subset of chars
+    # prompt: "Transcribe speech to text. Output the transcription directly without redundant content. Ensure that the output is not duplicated. "
+    #prompt: "음성을 텍스트로 변환해주세요. 변환된 텍스트만 직접적으로 출력하고, 중복된 내용 없이 출력되도록 하세요."
+    prompt: "음성을 텍스트로 변환해주세요."

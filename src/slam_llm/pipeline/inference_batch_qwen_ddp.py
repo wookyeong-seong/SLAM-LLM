@@ -19,6 +19,9 @@ from tqdm import tqdm
 import hydra
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
+import os
+from torch.nn.parallel import DistributedDataParallel as DDP
+from slam_llm.utils.train_utils import setup, clear_gpu_cache, setup_environ_flags
 
 @hydra.main(config_name=None, version_base=None)
 def main_hydra(cfg: DictConfig):
@@ -96,16 +99,36 @@ def main(kwargs: DictConfig):
     torch.manual_seed(train_config.seed)
     random.seed(train_config.seed)
 
+    if train_config.enable_fsdp or train_config.enable_ddp:
+        setup()
+        # torchrun specific
+        local_rank = int(os.environ["LOCAL_RANK"])
+        rank = int(os.environ["RANK"])
+        world_size = int(os.environ["WORLD_SIZE"])
+        logger.info(f"local_rank: {local_rank}, rank: {rank}, world_size: {world_size}")
+
+    if torch.distributed.is_initialized():
+        torch.cuda.set_device(local_rank)
+        clear_gpu_cache(local_rank)
+        setup_environ_flags(rank)
+
     model_factory = get_custom_model_factory(model_config, logger)
-    model, tokenizer = model_factory(train_config, model_config, **kwargs)
+    model, processor, tokenizer = model_factory(train_config, model_config, **kwargs)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # FIX(MZY): put the whole model to device.
-    model.to(device)
+
+    if train_config.enable_ddp:
+        model = model.cuda(local_rank)
+        model = DDP(model, device_ids=[local_rank],
+                    find_unused_parameters=kwargs.get("train_conf", {}).get("find_unused_parameters", False))
+    else:
+        model.to(device)
+
     model.eval()
 
     # dataset_config = generate_dataset_config(train_config, kwargs)
     logger.info("dataset_config: {}".format(dataset_config))
     dataset_test = get_preprocessed_dataset(
-            tokenizer,
+            processor,
             dataset_config,
             split="test",
             )
@@ -129,9 +152,15 @@ def main(kwargs: DictConfig):
     with open(pred_path, "w") as pred, open(gt_path, "w") as gt:
         for step, batch in tqdm(enumerate(test_dataloader), total=len(test_dataloader)):
             for key in batch.keys():
-                batch[key] = batch[key].to(device) if isinstance(batch[key], torch.Tensor) else batch[key]
-            model_outputs = model.generate(**batch)
-            output_text = model.tokenizer.batch_decode(model_outputs, add_special_tokens=False, skip_special_tokens=True)
+                if train_config.enable_ddp:
+                    batch[key] = batch[key].to(local_rank) if isinstance(batch[key], torch.Tensor) else batch[key]
+                else:
+                    batch[key] = batch[key].to(device) if isinstance(batch[key], torch.Tensor) else batch[key]
+            #print(f'batch: {batch}', flush=True)
+            model_outputs = model.module.generate(**batch)
+            model_outputs = model_outputs[:, batch.input_ids.size(1):]
+            #output_text = model.tokenizer.batch_decode(model_outputs, add_special_tokens=False, skip_special_tokens=True)
+            output_text = model.module.tokenizer.batch_decode(model_outputs, skip_special_tokens=True, clean_up_tokenization_spaces=False)
             for key, text, target in zip(batch["keys"], output_text, batch["targets"]):
                 pred.write(key + "\t" + text.replace("\n", " ") + "\n")
                 pred.flush()

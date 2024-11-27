@@ -6,7 +6,7 @@ from torch.distributed.fsdp import ShardingStrategy
 
 @dataclass
 class ModelConfig:
-    file: str = "/workspace/tools/SLAM-LLM/examples/asr_librispeech/model/slam_model_asr.py:model_factory"
+    file: str = "/workspace/tools/SLAM-LLM/examples/qwen2audio/model/slam_model_qwen2audio.py:model_factory"
     llm_name: str = "vicuna-13b-v1.5"
     llm_path: str = "PATH/to/LLAMA/7B"
     llm_type: str = "decoder_only"
@@ -31,7 +31,8 @@ class PeftConfig:
     peft_method: str = "lora" # None , llama_adapter, prefix
     r: int = 8
     lora_alpha: int = 32
-    target_modules: List = field(default_factory=lambda: [ "q_proj", "v_proj" ])
+    #target_modules: List = field(default_factory=lambda: [ "q_proj", "v_proj" ])
+    target_modules: str = "all-linear"
     bias: str = "none"
     task_type: str = "CAUSAL_LM"
     lora_dropout: float = 0.05
@@ -45,11 +46,12 @@ class TrainConfig:
     enable_fsdp:bool = False
     low_cpu_fsdp:bool = False
     run_validation:bool = True
-    batch_size_training:int = 4
+    #batch_size_training:int = 4
+    batch_size_training:int = 2
     batching_strategy:str = field(default="packing", metadata={
         "help":"alternative: padding"
     }) #
-    context_length:int = 4096
+    context_length:int = 1024
     gradient_accumulation_steps:int = 1
     num_epochs:int = 3
     num_workers_dataloader:int = 1
@@ -86,10 +88,10 @@ class TrainConfig:
 
 @dataclass
 class DataConfig:
-    dataset: str = "speech_dataset"
-    file: str = "/workspace/tools/SLAM-LLM/src/slam_llm/datasets/speech_dataset.py:get_speech_dataset"
-    train_data_path: Optional[str] = None
-    val_data_path: Optional[str] = None
+    dataset: str = "qwenaudio_dataset"
+    file: str = "/workspace/tools/SLAM-LLM/src/slam_llm/datasets/qwen2audio_dataset.py:get_speech_dataset"
+    train_data_path: Optional[str] = "/workspace/tools/SLAM-LLM/examples/asr_librispeech/data/kspon-drama1k-kor-nopunc-20sec/train.jsonl,/workspace/tools/SLAM-LLM/examples/qwen2audio/data/audiocaps/train_kor.jsonl,/workspace/tools/SLAM-LLM/examples/qwen2audio/data/clotho/train_kor.jsonl,/workspace/tools/SLAM-LLM/examples/qwen2audio/data/musiccaps/train_kor.jsonl" 
+    val_data_path: Optional[str] = "/workspace/tools/SLAM-LLM/examples/asr_librispeech/data/kspon-drama1k-kor-nopunc-20sec/valid.jsonl,/workspace/tools/SLAM-LLM/examples/qwen2audio/data/audiocaps/val_kor.jsonl,/workspace/tools/SLAM-LLM/examples/qwen2audio/data/clotho/val_kor.jsonl,/workspace/tools/SLAM-LLM/examples/qwen2audio/data/musiccaps/val_kor.jsonl"
     train_split: str = "train"
     test_split:str = "validation"
     prompt: Optional[str] = None
@@ -123,9 +125,17 @@ class FSDPConfig:
 @dataclass
 class LogConfig:
     use_wandb: bool = True
-    wandb_dir: str = "/workspace/tools/SLAM-LLM/examples/asr_librispeech/test_wandb"
+    wandb_dir: str = "/workspace/tools/SLAM-LLM/examples/qwen2audio/test_wandb"
     wandb_entity_name: str = "slam"
-    wandb_project_name: str = "slam"
-    wandb_exp_name: str = "gpu8-fp32-ampOff-whisper_large-v3_vicuba_7b"
-    log_file: str = "/workspace/tools/SLAM-LLM/examples/asr_librispeech/test.log"
+    wandb_project_name: str = "qwen2audio"
+    #wandb_exp_name: str = "gpu8-fp32-ampOff-wavlm_large-v3_bllossom_3b"
+    #wandb_exp_name: str = "kordrama1knopunc-gpu8-fp32-ampOff-wavlm_large-v3_bllossom_3b"
+    #wandb_exp_name: str = "korpromptdrama1knopunc-gpu8-fp32-ampOff-wavlm_large-v3_bllossom_3b"
+    #wandb_exp_name: str = "korpromptdrama1knopunc-gpu8-wavlm_phi3.5"
+    #wandb_exp_name: str = "LoRA-korpromptdrama1knopunc-gpu8-wavlm_phi3.5"
+    #wandb_exp_name: str = "kspon_drama1k-gpu8"
+    #wandb_exp_name: str = "kspon_drama1k-20sec-gpu16"
+    wandb_exp_name: str = "aac-kspon_drama1k-20sec-gpu16"
+    #wandb_exp_name: str = "drama1k-gpu8-bf16"
+    log_file: str = "/workspace/tools/SLAM-LLM/examples/qwen2audio/test.log"
     log_interval: int = 5

@@ -147,7 +147,7 @@ def main(kwargs: DictConfig):
 
 
     model_factory = get_custom_model_factory(model_config, logger)
-    model, tokenizer = model_factory(train_config, model_config, **kwargs)
+    model, processor, tokenizer = model_factory(train_config, model_config, **kwargs)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     
@@ -194,14 +194,14 @@ def main(kwargs: DictConfig):
     
     # Load and preprocess the dataset for training and validation
     dataset_train = get_preprocessed_dataset(
-        tokenizer,
+        processor,
         dataset_config,
         split="train",
     )
     if not (train_config.enable_fsdp or train_config.enable_ddp) or rank == 0:
         logger.info(f"--> Training Set Length = {len(dataset_train)}")
     dataset_val = get_preprocessed_dataset(
-        tokenizer,
+        processor,
         dataset_config,
         split="val",
     )
